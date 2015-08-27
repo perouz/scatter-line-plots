@@ -301,7 +301,7 @@ While rendering, we can then use this information to blend the colors appropriat
 
 
 
-\section{Progressive Loading of 2D Line Plots}
+\section{Displaying 2D Line Plots}
 Unlike for scatter plots, computing a (reasonable) cover order for line plots is a more challenging task.
 In the line plot setting, the use of quadtrees is not efficient because a segment may hit $O(2^h)$ boxes in level $h$
 resulting in a huge quadtree. 
@@ -316,23 +316,21 @@ resulting in a huge quadtree.
 \end{figure}
 
 
-
-Build covers inductively, solve for $F_j \ F_{j-1}$ :	
-Want smallest set of line segments that cover $P \ F_{j-1}$ at scale $s_j$.
+In the line plot setting, we want to build covers inductively and solve for $F_j \ F_{j-1}$.
+In other words, we want the smallest set of line segments that cover $P \ F_{j-1}$ at scale $s_j$.
 
 \paragraph{Ideas.}
-Set Cover Approximation.
-○ The cover ordering problem for line segments can be
-reduced to the problem of Set Cover (which is NP-complete).
-○ This allows us to use the Set Cover approximation algorithm
-that has an approximation factor of (log n).
-Running time: O(n 3 ).
-2. Greedy Longest Segment.
-○ Sort the segments and process them by decreasing order of
-length. Running time: O(n 2 ) .
-3. Divide-and-Conquer.
-○ Recursively split the segments (arbitrarily) into two equal
-groups and process. Running time: O(n log n) .
+\begin{enumerate}
+\item \emph{Set Cover Approximation.} 
+  The cover ordering problem for line segments can be reduced to the problem of Set Cover (which is NP-complete).
+  This allows us to use a known approximation algorithm for finding set covers. 
+  One such algorithm has an approximation factor of $\log n$, with a running time of $O(n^3)$.
+\item \emph{Greedy Longest Segment.}
+  In this approach, we sort the segments and process them by decreasing order of length. 
+  The running time is $O(n^2)$.
+\item \emph{Divide-and-Conquer.} 
+  We recursively split the segments (arbitrarily) into two equal groups and process separately. The running time is $O(n \log n)$.
+\end{enumerate}
 
 
 \vskip2cm
