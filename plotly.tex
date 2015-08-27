@@ -79,6 +79,8 @@ interactive and scalable solutions which connect computer science, mathematics, 
 \emph{Plotly} is an online data visualization tool designed to quickly render graphs in web browsers. 
 The user base of the tool comprises of a wide variety of clients from industry and scientific labs. 
 As these clients have access to larger data sets, demand to enable the rendering of huge two-dimensional plots has grown in recent years. 
+There are various successful attempts at rendering such huge point clouds efficiently~\cite{?????????},
+However, not many studies have address this problem when the rendering needs to be done inside a browser (see for example~\cite{schutzrendering}).
 One of the main challenges of plotting a large number of points
 inside a browser is doing so efficiently using a limited amount of memory (typically 1GB). 
 With the current online Plotly interface, the maximum number of points that one can plot is about 100,000 points. 
@@ -111,6 +113,14 @@ we need a fast way of deciding (whether on the server or on the client) which po
 so that the plot looks effectively just as it would if you plotted everything.
 The client then can query the server on zoom/pan events to update the data. 
 %
+\begin{figure}[t]
+  \begin{center}
+    \includegraphics[scale=0.2]{scatter.png}
+    \caption{A scatter plot of 100,000 points in 2D.}
+    \label{scatter}
+  \end{center}
+\end{figure}
+
 
 It is also essential that existing plot features are maintained. 
 In particular, advanced styling features (such as custom glyphs, colors, sizes, borders, etc.) must be preserved, 
@@ -126,17 +136,10 @@ Given a set of $n$ vectors in 2D and a shape $S$ (which we call the \emph{marker
 a \emph{scatter plot} is the image formed by the union of $n$ copies of $S$ translated by each vector. 
 A \emph{line plot} is a piecewise linear curve (i.e. a polyline).
 
-\begin{figure}[hbt]
-  \begin{center}
-    \includegraphics[scale=0.3]{scatter.png}
-    \caption{A scatter plot of 100,000 points in 2D.}
-    \label{scatter}
-  \end{center}
-\end{figure}
 
 \begin{figure}[hbt]
   \begin{center}
-    \includegraphics[scale=0.3]{line.png}
+    \includegraphics[scale=0.2]{line.png}
     \caption{A line plot of 100,000 points in 2D.}
     \label{line}
   \end{center}
@@ -200,7 +203,7 @@ and the building of this data structure in a way that minimizes the use of worki
 
 A \emph{quadtree} of a set of points in the plane is a geometric data structure that is constructed by recursively splitting the 
 area (usually the square bounding box of the input pointset) into four equal-sized squares
-until every square contains at most one point~\cite{quadtrees74}.
+until every square contains at most one point~\cite{finkel1974quad}.
 
 Let $A$ be a set of $n$ points in the plane, and let $z$ be a zoom level 
 (which is a function of the current pixel size and screen resolution/size).  %(represented by their $x$ and $y$ coordinates). 
@@ -215,12 +218,15 @@ Once the points $A$ are loaded in the client (we will assume $A$ is an array of 
 	The size of array $L$ will be equal to the height of the quadtree.
 \end{enumerate}
 
+The ordering of the points by their level in the quadtree gives us a cover order for the points of the scatter plot:
 For a given zoom level $z$, this ordering of points by level gives us a way to decide which points need to be rendered
-and which do not because they are ``hidden'' by others. 
+and which do not because they are ``hidden'' behind others. 
 Consider a square area of the quadtree, which corresponds to a node $p$ at some level $l$ in the tree. 
 If the zoom level of the rendering matches with $l$, then the quadtree structure tells us that all vertices in that single square area 
 will be mapped on top of each other on the screen in the final rendering on the screen. 
 Therefore, instead of rendering all the points ($p$ and its descendants), we can instead render only point $p$. 
+
+
 
 
 \paragraph{Rendering. } 
@@ -258,13 +264,6 @@ that encloses that sides of the screen. See Figure~\ref{quad}.
 
 \paragraph{Analysis.}
 
-Preprocessing may take a long time if the quadtree ends up having height O(n).
-● This happens when the input consists of a big
-cluster of points that are far from the rest of the
-points.
-● To avoid such a bad case, we introduce a small
-change to the way we construct the quadtree.
-
 A quadtree of depth $d$ storing a set of $n$ points has $O((d + 1)n)$ nodes and can be constructed in $O((d + 1)n)$ time.
 In general, the depth of a quadtree of a set of points in the plane is at most $\log (s/c) + \frac{3}{2}$, 
 where $s$ is the length of one the edges of the bounding box and $c$ is the distance between 
@@ -280,7 +279,7 @@ Doing this will preserve the level information for each point, which is all that
 while at the same time decreasing the height of the tree.
 
 The algorithm described in this section has made it possible to render 100 million points inside a browser while maintaining
-reasonable interactivity of the plot.
+reasonable interactivity.
 
 
 
@@ -303,15 +302,49 @@ While rendering, we can then use this information to blend the colors appropriat
 
 
 \section{Progressive Loading of 2D Line Plots}
+Unlike for scatter plots, computing a (reasonable) cover order for line plots is a more challenging task.
+In the line plot setting, the use of quadtrees is not efficient because a segment may hit $O(2^h)$ boxes in level $h$
+resulting in a huge quadtree. 
+
+
+\begin{figure}[hbt]
+  \begin{center}
+    \includegraphics[scale=0.15]{lineplot-cover.png}
+    \caption{The three thick line segments constitute a cover for all the segments for a given zoom level. Only these three segments need to be rendered by the GPU.}
+    \label{quad}
+  \end{center}
+\end{figure}
 
 
 
-[1] R. A. Finkel and J. L. Bentley. Quad trees: a data structure for retrieval on composite keys. Acta Inform., 4:1–9, 1974.
+Build covers inductively, solve for $F_j \ F_{j-1}$ :	
+Want smallest set of line segments that cover $P \ F_{j-1}$ at scale $s_j$.
+
+\paragraph{Ideas.}
+Set Cover Approximation.
+○ The cover ordering problem for line segments can be
+reduced to the problem of Set Cover (which is NP-complete).
+○ This allows us to use the Set Cover approximation algorithm
+that has an approximation factor of (log n).
+Running time: O(n 3 ).
+2. Greedy Longest Segment.
+○ Sort the segments and process them by decreasing order of
+length. Running time: O(n 2 ) .
+3. Divide-and-Conquer.
+○ Recursively split the segments (arbitrarily) into two equal
+groups and process. Running time: O(n log n) .
+
 
 \vskip2cm
 
 \section*{Acknowledgements}
-We would like to thank the participants and organizers of the \emph{Sixth Montreal Industrial Problem Solving Workshop}
+We would like to thank the participants and organizers of the \href{http://www.crm.umontreal.ca/probindustriels2015/}{Sixth Montreal Industrial Problem Solving Workshop}
 where the problem was first posed. 
+
+
+\bibliography{algs}
+\bibliographystyle{alpha}
+
+
 
 \end{document}
